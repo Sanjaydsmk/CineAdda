@@ -1,79 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import { Heart, PlayCircleIcon, StarIcon } from 'lucide-react';
+import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import BlurCircle from '../components/BlurCircle';
+import { Heart, PlayCircleIcon, StarIcon } from 'lucide-react';
+import timeFormat from '../lib/timeFormat';
 import DateSelect from '../components/DateSelect';
 import MovieCard from '../components/MovieCard';
-import { dummyDateTimeData, dummyShowsData } from '../assets/assets';
-import timeFormat from '../lib/timeFormat';
-import { isFavoriteMovie, toggleFavoriteMovie } from '../lib/favorites';
+import Loading from '../components/Loading';
+import { useAppContext } from '../context/AppContext';
+import toast from 'react-hot-toast';
 
 const MovieDetails = () => {
-
   const navigate = useNavigate();
-
   const { id } = useParams();
-  const movieId = Number(id);
-  const movie = dummyShowsData.find((show) => show.id === movieId);
-  const shows = dummyShowsData.filter((show) => show.id !== movieId);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const languageLabel =
-    movie?.original_language?.toLowerCase() === 'en'
-      ? 'ENGLISH'
-      : movie?.original_language?.toUpperCase();
-  const castMembers = movie?.casts || movie?.cast || [];
-
-  
-
-  useEffect(() => {
-    if (!movie) {
-      return;
+  const [show, setShows] = React.useState(null);
+  const {
+    shows,
+    axios,
+    getToken,
+    user,
+    fetchFavoriteMovies,
+    favoriteMovies,
+    image_base_url,
+  } = useAppContext();
+  const getShows = async () => {
+    try {
+      const token = user ? await getToken() : null;
+      const { data } = await axios.get(`/api/shows/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (data.success) {
+        setShows(data);
+      }
+    } catch (err) {
+      console.log(err);
     }
-
-    setIsFavorite(isFavoriteMovie(movie.id));
-  }, [movie]);
-
-  const handleFavoriteClick = () => {
-    if (!movie) {
-      return;
-    }
-
-    setIsFavorite(toggleFavoriteMovie(movie.id));
   };
 
-  if (!movie) {
-    return (
-      <div className="px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[60vh]">
-        <h1 className="text-2xl font-semibold">Movie not found</h1>
-      </div>
-    );
-  }
+  const handleFavorite = async () => {
+    try {
+      if (!user) return toast.error('Please sign in to add to favorites');
+      const { data } = await axios.post(
+        `/api/user/update-favorite`,
+        { movieId: id },
+        {
+          headers: { Authorization: `Bearer ${await getToken()}` },
+        }
+      );
 
+      if (data.success) {
+        await fetchFavoriteMovies();
+        toast.success(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  useEffect(() => {
+    if (id) {
+      getShows();
+    }
+  }, [id, user]);
+
+  if (!show || !show.movie) {
+    return <Loading />;
+  }
   return (
     <div className="px-6 md:px-16 lg:px-40 pt-30 md:pt-50">
       <div className="flex flex-col md:flex-row gap-8 max-w-6xl mx-auto">
         <img
-          src={movie.poster_path || movie.backdrop_path}
-          alt={movie.title}
+          src={
+            show.movie.poster_path
+              ? `${image_base_url}${show.movie.poster_path}`
+              : '/no-image.png'
+          }
+          alt={show.movie.title}
           className="max-md:mx-auto rounded-xl h-104 max-w-70 object-cover"
         />
         <div className="relative flex flex-col gap-3">
           <BlurCircle top="-100px" left="-100px" />
-          <p className="text-primary">{languageLabel}</p>
+          <p className="text-primary">{show.movie.original_language}</p>
           <h1 className="text-4xl font-semibold max-w-96 text-balance">
-            {movie.title}
+            {show.movie.title}
           </h1>
           <div className="flex items-center gap-2 text-gray-300">
             <StarIcon className="w-5 h-5 text-primary fill-primary" />
-            {movie.vote_average?.toFixed(1)} User Rating
+            {show.movie.vote_average?.toFixed(1)} User Rating
           </div>
           <p className="text-gray-400 mt-2 text-sm leading-tight max-w-xl">
-            {movie.overview}
+            {show.movie.overview}
           </p>
           <p>
-            {timeFormat(movie.runtime)} •{' '}
-            {movie.genres?.map((genre) => genre.name).join(', ')} •{' '}
-            {movie.release_date?.split('-')[0]}
+            {timeFormat(show.movie.runtime)} • {show.movie.genres?.join(', ')} •{' '}
+            {show.movie.release_date?.split('-')[0]}
           </p>
 
           <div className="flex items-center flex-wrap gap-4 mt-4">
@@ -88,13 +106,15 @@ const MovieDetails = () => {
               Buy Tickets
             </a>
             <button
-              onClick={handleFavoriteClick}
+              onClick={handleFavorite}
               className="bg-gray-700 p-2.5 rounded-full transition cursor-pointer active:scale-95"
-              aria-label={isFavorite ? 'Remove from favourites' : 'Add to favourites'}
-              type="button"
             >
               <Heart
-                className={`w-5 h-5 ${isFavorite ? 'fill-primary text-primary' : ''}`}
+                className={`w-5 h-5 ${
+                  favoriteMovies?.find((m) => m._id.toString() === id)
+                    ? 'fill-primary text-primary'
+                    : ''
+                }`}
               />
             </button>
           </div>
@@ -102,40 +122,32 @@ const MovieDetails = () => {
       </div>
 
       <p className="text-lg font-medium mt-20">Your Favorite Cast</p>
+
       <div className="overflow-x-auto no-scrollbar mt-8 pb-4">
         <div className="flex items-center gap-6 w-max px-4">
-          {castMembers.slice(0, 12).map((castItem, index) => {
-            const castName =
-              typeof castItem === 'string' ? castItem : castItem?.name || 'Unknown';
-            const castImage =
-              typeof castItem === 'string' ? '' : castItem?.profile_path || '';
-
-            return (
-              <div key={`${castName}-${index}`} className="flex items-center flex-col text-center">
-                {castImage ? (
-                  <img
-                    src={castImage}
-                    alt={castName}
-                    className="rounded-full h-20 w-20 object-cover"
-                  />
-                ) : (
-                  <div className="rounded-full h-20 w-20 bg-gray-700 flex items-center justify-center text-white text-xl font-semibold">
-                    {castName.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <p className="font-medium text-xs mt-3 w-20 truncate">{castName}</p>
+          {show.movie.cast?.slice(0, 12).map((castName, index) => (
+            <div key={index} className="flex items-center flex-col text-center">
+              <div className="rounded-full h-20 w-20 bg-gray-700 flex items-center justify-center text-white text-xl font-semibold">
+                {castName?.charAt(0).toUpperCase()}
               </div>
-            );
-          })}
+              <p className="font-medium text-xs mt-3 w-20 truncate">
+                {castName}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
-      <DateSelect dateTime={dummyDateTimeData} id={movie.id} />
+      <DateSelect dateTime={show.dateTime} id={id} />
+
       <p className="text-lg font-medium mt-20 mb-8">You May Also Like</p>
       <div className="flex flex-wrap max-sm:justify-center gap-8">
-        {shows.slice(0, 4).map((show, index) => (
-          <MovieCard key={index} movie={show} />
-         ))}
+        {shows
+          .filter((s) => s && s.movie)
+          .slice(0, 4)
+          .map((s, index) => (
+            <MovieCard key={index} movie={s.movie} />
+          ))}
       </div>
       <div className="flex justify-center mt-20">
         <button
@@ -149,6 +161,7 @@ const MovieDetails = () => {
         </button>
       </div>
     </div>
-  )
+  );
 };
+
 export default MovieDetails;

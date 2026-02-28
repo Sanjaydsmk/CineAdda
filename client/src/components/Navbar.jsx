@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { assets } from '../assets/assets';
 import { MenuIcon, SearchIcon, TicketPlus, User, XIcon } from 'lucide-react';
 import { useClerk, UserButton, useUser } from '@clerk/clerk-react';
+import { useAppContext } from '../context/AppContext';
 const Navbar = () => {
 
   const [isOpen, setIsOpen] = React.useState(false);
   const{user}=useUser()
   const{openSignIn}=useClerk()  
   const navigate=useNavigate()
+  const {favoriteMovies} = useAppContext();
 
 
   return (
@@ -31,7 +33,15 @@ border-gray-300/20 overflow-hidden transition-[width] duration-300
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/movies'>Movies</Link>
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/theaters'>Theaters</Link>
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/releases'>Releases</Link>
-        <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/favourites'>Favourites</Link>
+       {favoriteMovies?.length > 0 && <Link
+          onClick={() => {
+            scrollTo(0, 0);
+            setIsOpen(false);
+          }}
+          to="/favorites"
+        >
+          Favorites {favoriteMovies?.length > 0 && `(${favoriteMovies.length})`}
+        </Link>}
 
       </div>
       <div className='flex items-center gap-8'>

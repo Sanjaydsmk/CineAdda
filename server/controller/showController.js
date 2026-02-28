@@ -2,6 +2,7 @@ import axios from "axios"
 import { err } from "inngest/types";
 import Movie from '../models/Movie.js';
 import Show from '../models/Show.js';
+import connectDB from "../configs/db.js";
 
 
 //api to get now playing fromtmdb 
@@ -9,7 +10,7 @@ import Show from '../models/Show.js';
 
 export const getNowPlayingMovies = async (req, res) => {
     try{
-
+      
         const {data} =await axios.get('https://api.themoviedb.org/3/movie/now_playing',{
             headers:{ Authorization: `Bearer ${process.env.TMDB_API_KEY}` }
         })
@@ -27,6 +28,7 @@ export const getNowPlayingMovies = async (req, res) => {
 // api to add new show to db
 export const addShow = async (req, res) => {
   try {
+    await connectDB();
     const { movieId, showsInput, showPrice } = req.body;
 
     let movie = await Movie.findById(movieId);
@@ -139,6 +141,7 @@ export const getShows = async (req, res) => {
 
 export const getShow = async (req, res) => {
   try {
+    await connectDB()
     const { movieId } = req.params;
 
     // get all upcoming shows for the movie

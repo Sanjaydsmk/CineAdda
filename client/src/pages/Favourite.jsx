@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import MovieCard from '../components/MovieCard'
 import BlurCircle from '../components/BlurCircle'
-import { dummyShowsData } from '../assets/assets'
+
 import { getFavoriteMovieIds } from '../lib/favorites'
+import { useAppContext } from '../context/AppContext'
 
 const Favourite = () => {
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const { favoriteMovies }=useAppContext();
 
   useEffect(() => {
     const syncFavorites = () => {
@@ -22,7 +24,10 @@ const Favourite = () => {
     };
   }, []);
 
-  const shows = dummyShowsData.filter((movie) => favoriteIds.includes(movie.id));
+  const favoriteIdSet = new Set(favoriteIds.map((id) => String(id)));
+  const shows = favoriteMovies.filter((movie) =>
+    favoriteIdSet.has(String(movie.id || movie._id))
+  );
   return shows.length > 0 ?(
     <div className='relative my-40 mb-60 px-6 md:px-16 lg:px-40 xl:px-44 overflow-hidden min-h-[80vh]'>
       <BlurCircle top='150px' left='0px'/>

@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 @import "tailwindcss";
-@theme{
-    --color-primary: #F84565;
-    --color-primary-dull: #D63854;
+@theme {
+  --color-primary: #2563EB;      /* Indigo Blue */
+  --color-primary-dull: #1E40AF; /* Dark Indigo */
 }
 *{
     font-family: "Outfit", sans-serif;

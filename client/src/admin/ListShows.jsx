@@ -1,13 +1,40 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Title from '../components/admin/title';
 import Loading from '../components/Loading';
-import { dummyDashboardData } from '../assets/assets';
 import dateFormat from '../lib/dateFormat';
+import { useAppContext } from '../context/AppContext';
+import { toast } from 'react-hot-toast';
 
 const ListShows = () => {
-  const [loading] = React.useState(false);
-  const shows = dummyDashboardData.activeShows.slice(0, 1);
+  const { axios, getToken, user } = useAppContext();
+  const [loading, setLoading] = useState(true);
+  const [shows, setShows] = useState([]);
+
   const currency = '$';
+   const getAllShows = async () => {
+    try {
+      const { data } = await axios.get('/api/admin/all-shows', {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      if (data.success) {
+        setShows(data.shows || []);
+      } else {
+        toast.error(data.message || 'Failed to load shows');
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error('Failed to load shows');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (user) {
+      getAllShows();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
 
   return !loading ? (
     <>

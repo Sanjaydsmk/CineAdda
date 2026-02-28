@@ -1,14 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChartLineIcon, CircleDollarSignIcon, PlayCircleIcon, StarIcon, UserIcon } from 'lucide-react';
 import BlurCircle from '../components/BlurCircle';
 import Title from '../components/admin/title';
 import dateFormat from '../lib/dateFormat';
-import { dummyDashboardData } from '../assets/assets';
-
-const dashboardData = dummyDashboardData;
+import { useAppContext } from '../context/AppContext';
+import Loading from '../components/Loading';
+import { toast } from 'react-hot-toast';
 
 const Dashboard = () => {
+  const { axios, getToken, image_base_url, user } = useAppContext();
   const currency = '$';
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState({
+    totalBookings: 0,
+    totalRevenue: 0,
+    activeShows: [],
+    totalUser: 0
+  });
 
   const dashboardCards = [
     {
@@ -32,6 +40,35 @@ const Dashboard = () => {
       icon: UserIcon,
     },
   ];
+
+  const fetchDashboardData = async () => {
+    try {
+      const { data } = await axios.get('/api/admin/dashboard', {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      if (data.success) {
+        setDashboardData(data.dashboardData);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error('Failed to fetch dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    
+    if(user)
+    {
+      fetchDashboardData();
+    } else {
+      setLoading(false);
+    }
+  }, [user]); 
+
+  if (loading) return <Loading />;
 
   return (
     <>
@@ -63,7 +100,11 @@ const Dashboard = () => {
             key={show._id}
             className="w-55 rounded-lg overflow-hidden h-full pb-3 bg-primary/10 border border-primary/20 hover:-translate-y-1 transition duration-300"
           >
-            <img src={show.movie.poster_path} alt={show.movie.title} className="w-full h-60 object-cover" />
+            <img
+              src={`${image_base_url}${show.movie.poster_path}`}
+              alt={show.movie.title}
+              className="w-full h-60 object-cover"
+            />
             <p className="font-medium p-2 truncate">{show.movie.title}</p>
             <div className="flex items-center justify-between px-2">
               <p className="text-lg font-medium">

@@ -1,14 +1,39 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Title from '../components/admin/title';
 import Loading from '../components/Loading';
-import { dummyBookingData } from '../assets/assets';
 import dateFormat from '../lib/dateFormat';
+import { useAppContext } from '../context/AppContext';
+import { toast } from 'react-hot-toast';
 
 const ListBookings = () => {
-  const [loading] = React.useState(false);
-  const bookings = dummyBookingData;
+  const { axios, getToken, user } = useAppContext();
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState([]);
   const currency = '$';
-
+  const getAllBookings = async () => {
+    try {
+      const { data } = await axios.get('/api/admin/all-bookings', {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      if (data.success) {
+        setBookings(data.bookings || []);
+      } else {
+        toast.error(data.message || 'Failed to load bookings');
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error('Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (user) {
+      getAllBookings();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
   return !loading ? (
     <>
       <Title text1="List" text2="Bookings" />
