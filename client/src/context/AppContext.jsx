@@ -65,6 +65,37 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const toggleFavorite = async (movieId) => {
+    try {
+      if (!user) {
+        // guest: toggle in localStorage
+        // lazy-import to avoid circular
+        const { toggleFavoriteMovie } = await import('../lib/favorites');
+        toggleFavoriteMovie(movieId);
+        // trigger any listeners
+        window.dispatchEvent(new Event('favorites-updated'));
+        return { success: true, source: 'local' };
+      }
+
+      const token = await getToken();
+      const { data } = await axios.post(
+        '/api/user/update-favorite',
+        { movieId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (data.success) {
+        await fetchFavoriteMovies();
+        return { success: true, source: 'server' };
+      }
+
+      return { success: false, message: data.message };
+    } catch (err) {
+      console.log('toggleFavorite error', err);
+      return { success: false, message: err.message };
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchShows();
@@ -73,10 +104,12 @@ export const AppProvider = ({ children }) => {
     if (isLoaded && user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       console.log('Fetching favorites...');
-      fetchIsAdmin();
+      if (location.pathname.startsWith('/admin')) {
+        fetchIsAdmin();
+      }
       fetchFavoriteMovies();
     }
-  }, [isLoaded, user?.id]);
+  }, [isLoaded, user?.id, location.pathname]);
 
   const value = {
     axios,
@@ -88,6 +121,7 @@ export const AppProvider = ({ children }) => {
     shows,
     favoriteMovies,
     fetchFavoriteMovies,
+    toggleFavorite,
     image_base_url,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

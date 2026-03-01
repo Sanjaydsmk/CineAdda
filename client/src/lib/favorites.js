@@ -8,7 +8,7 @@ export const getFavoriteMovieIds = () => {
   try {
     const stored = window.localStorage.getItem(FAVORITES_KEY);
     const parsed = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) ? parsed.filter((id) => Number.isFinite(id)) : [];
+    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
   } catch {
     return [];
   }
@@ -24,15 +24,16 @@ const saveFavoriteMovieIds = (ids) => {
 };
 
 export const isFavoriteMovie = (movieId) => {
-  return getFavoriteMovieIds().includes(movieId);
+  return getFavoriteMovieIds().includes(String(movieId));
 };
 
 export const toggleFavoriteMovie = (movieId) => {
+  const idStr = String(movieId);
   const currentIds = getFavoriteMovieIds();
-  const nextIds = currentIds.includes(movieId)
-    ? currentIds.filter((id) => id !== movieId)
-    : [...currentIds, movieId];
+  const nextIds = currentIds.includes(idStr)
+    ? currentIds.filter((id) => id !== idStr)
+    : [...currentIds, idStr];
 
   saveFavoriteMovieIds(nextIds);
-  return nextIds.includes(movieId);
+  return nextIds.includes(idStr);
 };

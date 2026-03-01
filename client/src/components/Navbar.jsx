@@ -38,9 +38,9 @@ border-gray-300/20 overflow-hidden transition-[width] duration-300
             scrollTo(0, 0);
             setIsOpen(false);
           }}
-          to="/favorites"
+          to="/favourites"
         >
-          Favorites {favoriteMovies?.length > 0 && `(${favoriteMovies.length})`}
+          Favourites {favoriteMovies?.length > 0 && `(${favoriteMovies.length})`}
         </Link>}
 
       </div>

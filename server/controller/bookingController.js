@@ -1,5 +1,6 @@
 import Booking from "../models/Bookings.js";
 import Show from "../models/Show.js";
+import stripe from 'stripe';
 
 //func to check availability of selected seats
 const checkSeatsAvailability = async (showId, selectedSeats) => {
@@ -24,9 +25,22 @@ const checkSeatsAvailability = async (showId, selectedSeats) => {
 }
 export const createBooking = async (req, res) => {
     try{
-        const {userId}=req.auth;
-        const{showId,selectedSeats}=req.body;
+        const { userId } = req.auth();
+        const { showId, selectedSeats: bodySelectedSeats, seats } = req.body;
+        const selectedSeats = bodySelectedSeats || seats || [];
         const {origin}=req.headers;
+        const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        if (!showId || !Array.isArray(selectedSeats) || selectedSeats.length === 0) {
+            return res.status(400).json({ success: false, message: "showId and seats are required" });
+        }
+        if (!stripeSecret) {
+            return res.status(500).json({ success: false, message: "Stripe is not configured on server" });
+        }
 
         //check if seats are available
         const isAvailable=await checkSeatsAvailability(showId,selectedSeats);
@@ -53,8 +67,47 @@ export const createBooking = async (req, res) => {
         await showData.save();
 
         //stripe gateway
+        const stripeInstance=new stripe(stripeSecret)
 
-        res.json({success:true, message:'Booking created successfully'})
+        //creating line items to for stripe
+        const line_items=[{
+            price_data:{
+                currency:'usd',
+                product_data:{
+                    name:showData.movie.title
+                },
+                unit_amount:Math.floor(booking.amount)*100
+            },
+            quantity:1
+        }]
+        const session=await stripeInstance.checkout.sessions.create({
+            success_url:`${origin}/my-bookings?payment=success`,
+            cancel_url:`${origin}/my-bookings`,
+            line_items:line_items,
+            mode:'payment',
+            metadata:{
+                bookingId:booking._id.toString()
+            },
+            expires_at:Math.floor(Date.now()/1000)+30*60,
+        })
+        const checkoutUrl = session.url || null;
+        booking.paymentLink = checkoutUrl;
+        await booking.save()
+
+        if (!checkoutUrl) {
+            return res.status(500).json({
+                success: false,
+                message: "Stripe checkout URL was not generated",
+                sessionId: session.id,
+            });
+        }
+
+        res.json({
+            success: true,
+            url: checkoutUrl,
+            paymentLink: checkoutUrl,
+            sessionId: session.id,
+        })
           
 
     }catch(error){

@@ -20,6 +20,7 @@ const MovieDetails = () => {
     user,
     fetchFavoriteMovies,
     favoriteMovies,
+    toggleFavorite,
     image_base_url,
   } = useAppContext();
   const getShows = async () => {
@@ -37,22 +38,11 @@ const MovieDetails = () => {
   };
 
   const handleFavorite = async () => {
-    try {
-      if (!user) return toast.error('Please sign in to add to favorites');
-      const { data } = await axios.post(
-        `/api/user/update-favorite`,
-        { movieId: id },
-        {
-          headers: { Authorization: `Bearer ${await getToken()}` },
-        }
-      );
-
-      if (data.success) {
-        await fetchFavoriteMovies();
-        toast.success(data.message);
-      }
-    } catch (err) {
-      console.log(err);
+    const result = await toggleFavorite(id);
+    if (result.success) {
+      toast.success('Favorites updated');
+    } else {
+      toast.error(result.message || 'Could not update favorites');
     }
   };
   useEffect(() => {
@@ -125,16 +115,31 @@ const MovieDetails = () => {
 
       <div className="overflow-x-auto no-scrollbar mt-8 pb-4">
         <div className="flex items-center gap-6 w-max px-4">
-          {show.movie.cast?.slice(0, 12).map((castName, index) => (
-            <div key={index} className="flex items-center flex-col text-center">
-              <div className="rounded-full h-20 w-20 bg-gray-700 flex items-center justify-center text-white text-xl font-semibold">
-                {castName?.charAt(0).toUpperCase()}
+          {show.movie.cast?.slice(0, 12).map((castMember, index) => {
+            const castName =
+              typeof castMember === 'string' ? castMember : castMember?.name;
+            const profilePath =
+              typeof castMember === 'object' ? castMember?.profile_path : null;
+
+            return (
+              <div key={index} className="flex items-center flex-col text-center">
+                {profilePath ? (
+                  <img
+                    src={image_base_url + profilePath}
+                    alt={castName || 'Cast member'}
+                    className="rounded-full h-20 w-20 object-cover bg-gray-700"
+                  />
+                ) : (
+                  <div className="rounded-full h-20 w-20 bg-gray-700 flex items-center justify-center text-white text-xl font-semibold">
+                    {(castName || '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <p className="font-medium text-xs mt-3 w-20 truncate">
+                  {castName || 'Unknown'}
+                </p>
               </div>
-              <p className="font-medium text-xs mt-3 w-20 truncate">
-                {castName}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

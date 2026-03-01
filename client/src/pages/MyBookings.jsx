@@ -4,20 +4,42 @@ import Loading from '../components/Loading';
 import BlurCircle from '../components/BlurCircle';
 import timeFormat from '../lib/timeFormat';
 import dateFormat from '../lib/dateFormat';
+import { useAppContext } from '../context/AppContext';
 const MyBookings = () => {
 
 const currency = import.meta.env.VITE_CURRENCY || '$';
+const {
+    
+    axios,
+    getToken,
+    user,
+    image_base_url,
+  } = useAppContext();
 const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getMyBookings = async () => {
-    setBookings(dummyBookingData)
-    setIsLoading (false);
-  }
+    try{
+      const {data}=await axios.get('/api/user/bookings',{
+        headers:{Authorization:`Bearer ${await getToken()}`}
+      });
+      if(data.success){
+        setBookings(data.bookings);
+      }
 
-  useEffect(() => {
+    }
+    catch(err){
+        console.log(err);
+    } finally{
+        setIsLoading(false);
+    }
+  };
+  // eslint-disable-next-line no-undef
+  React.useEffect(() => {
+    if(user){
     getMyBookings();
-  }, []);
+    }
+  }, [user]);
 
   return !isLoading ? (
     <div className="relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]">
@@ -33,7 +55,7 @@ const [bookings, setBookings] = useState([]);
         >
           <div className="flex flex-col md:flex-row">
             <img
-              src={item.show.movie.poster_path}
+              src={image_base_url+item.show.movie.poster_path}
               alt={item.show.movie.title}
               className="md:max-w-45 h-auto aspect-video rounded object-bottom object-cover"
             />
@@ -54,8 +76,15 @@ const [bookings, setBookings] = useState([]);
                 {currency}
                 {item.amount}
               </p>
-              {!item.isPaid && <button className='bg-primary px-4 py-1.5 mb-3 text-sm 
-              rounded-full font-medium cursor-pointer'> Pay Now</button>}
+              {!item.isPaid && (
+                <button
+                  className='bg-primary px-4 py-1.5 mb-3 text-sm rounded-full font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                  disabled={!item.paymentLink}
+                  onClick={() => item.paymentLink && (window.location.href = item.paymentLink)}
+                >
+                  {item.paymentLink ? 'Pay Now' : 'Payment Link Pending'}
+                </button>
+              )}
               </div>
               
               <div className="text-sm">

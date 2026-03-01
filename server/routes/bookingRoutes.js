@@ -1,11 +1,11 @@
 import express from "express";
 import { createBooking, getOccupiedSeats } from "../controller/bookingController.js";
-import { protectAdmin } from "../middleware/auth.js";
+import { requireAuth } from "@clerk/express";
 
 const bookingRouter =express.Router();
 
 
-bookingRouter.post('/create',protectAdmin,createBooking)
-bookingRouter.get('/seats/:showId',protectAdmin,getOccupiedSeats)
+bookingRouter.post('/create',requireAuth(),createBooking)
+bookingRouter.get('/seats/:showId',getOccupiedSeats)
 
 export default bookingRouter;

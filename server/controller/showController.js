@@ -1,5 +1,4 @@
 import axios from "axios"
-import { err } from "inngest/types";
 import Movie from '../models/Movie.js';
 import Show from '../models/Show.js';
 import connectDB from "../configs/db.js";
@@ -59,7 +58,12 @@ export const addShow = async (req, res) => {
         poster_path: movieApiData.poster_path,
         backdrop_path: movieApiData.backdrop_path,
         genres: movieApiData.genres.map((g) => g.name),
-        cast: movieCreditsData.cast.slice(0, 5).map((c) => c.name),
+        cast: movieCreditsData.cast.slice(0, 12).map((c) => ({
+          id: c.id,
+          name: c.name,
+          profile_path: c.profile_path || null,
+          character: c.character || "",
+        })),
         vote_average: movieApiData.vote_average,
         release_date: movieApiData.release_date,
         original_language: movieApiData.original_language,
@@ -150,7 +154,47 @@ export const getShow = async (req, res) => {
       showDateTime: { $gte: new Date() }
     });
 
-    const movie = await Movie.findById(movieId);
+    const movie = await Movie.findById(movieId).lean();
+    if (!movie) {
+      return res.json({
+        success: false,
+        message: "Movie not found"
+      });
+    }
+
+    const existingCast = Array.isArray(movie.cast) ? movie.cast : [];
+    const hasCastProfiles = existingCast.some(
+      (c) => c && typeof c === "object" && c.profile_path
+    );
+
+    // Backfill cast images for older records that were saved as name-only strings.
+    if (!hasCastProfiles) {
+      try {
+        const { data: creditsData } = await axios.get(
+          `https://api.themoviedb.org/3/movie/${movieId}/credits`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.TMDB_API_KEY}`
+            }
+          }
+        );
+
+        const enrichedCast = (creditsData?.cast || []).slice(0, 12).map((c) => ({
+          id: c.id,
+          name: c.name,
+          profile_path: c.profile_path || null,
+          character: c.character || "",
+        }));
+
+        if (enrichedCast.length) {
+          movie.cast = enrichedCast;
+          await Movie.findByIdAndUpdate(movieId, { cast: enrichedCast });
+        }
+      } catch (creditsError) {
+        console.error(creditsError);
+      }
+    }
+
     const dateTime = {};
 
     shows.forEach((show) => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { dummyDateTimeData, dummyShowsData } from '../assets/assets';
+import { useAppContext } from '../context/AppContext';
 import { ArrowRightIcon, ClockIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Loading from '../components/Loading';
@@ -24,18 +24,24 @@ const SeatLayout = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [selectedTime, setSelectedTime] = useState(null);
   const [show, setShow] = useState(null);
+  const [occupiedSeats,setOccupiedSeats]=useState([])
 
-  const getShow = () => {
-    const movie = dummyShowsData.find(
-      (item) => String(item.id) === String(id) || String(item._id) === String(id)
-    );
+  const { axios, getToken, user } = useAppContext();
 
-    if (movie) {
-      setShow({
-        movie,
-        dateTime: dummyDateTimeData,
+  const getShow = async () => {
+    try {
+      const token = user ? await getToken() : null;
+      const { data } = await axios.get(`/api/shows/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-    } else {
+
+      if (data.success) {
+        setShow(data);
+      } else {
+        setShow(null);
+      }
+    } catch (err) {
+      console.log(err);
       setShow(null);
     }
   };
@@ -46,6 +52,9 @@ const SeatLayout = () => {
 
   if (!selectedSeats.includes(seatId) && selectedSeats.length > 9) {
     return toast("You can only select 10 seats")
+  }
+  if(occupiedSeats.includes(seatId)){
+    return toast("This seat is already booked")
   }
 
   setSelectedSeats(prev =>
@@ -63,9 +72,9 @@ const renderSeats = (row, count = 9) => (
           <button
             key={seatId}
             onClick={() => handleSeatClick(seatId)}
-            className={`h-8 w-8 rounded border border-primary/60 cursor-pointer ${
-              selectedSeats.includes(seatId) && "bg-primary text-white"
-            }`}
+            className={`h-8 w-8 rounded border border-primary/60 cursor-pointer
+            ${selectedSeats.includes(seatId) && "bg-primary text-white"}
+            ${occupiedSeats.includes(seatId) && "opacity-50"}`}
           >
             {seatId}
           </button>
@@ -75,27 +84,93 @@ const renderSeats = (row, count = 9) => (
   </div>
 );
 
-const bookTickets = () => {
-  if (!selectedTime) {
-    return toast('Please select a timing first');
-  }
+// const bookTickets = () => {
+//   if (!selectedTime) {
+//     return toast('Please select a timing first');
+//   }
 
-  if (selectedSeats.length === 0) {
-    return toast('Please select at least 1 seat');
-  }
+//   if (selectedSeats.length === 0) {
+//     return toast('Please select at least 1 seat');
+//   }
 
-  toast.success(`Selected ${selectedSeats.length} seat(s)`);
-  navigate('/my-bookings');
-  scrollTo(0, 0);
+//   toast.success(`Selected ${selectedSeats.length} seat(s)`);
+//   navigate('/my-bookings');
+//   scrollTo(0, 0);
+// };
+
+const getOccupiedSeats=async()=>{
+  try{
+    const {data}=await axios.get(`/api/booking/seats/${selectedTime.showId}`)
+    if(data.success){
+      const seatMap = data.occupiedSeats || {};
+      setOccupiedSeats(Array.isArray(seatMap) ? seatMap : Object.keys(seatMap))
+    }else{
+      toast.error(data.message)
+    }
+  }catch(error){
+    console.log(error)
+  }
+}
+const bookTickets = async () => {
+  try {
+    if (!user) return toast.error("Please login to proceed");
+
+    if (!selectedTime || !selectedSeats.length)
+      return toast.error("Please select time and seats");
+
+    const { data } = await axios.post(
+      "/api/booking/create",
+      {
+        showId: selectedTime.showId,
+        selectedSeats,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${await getToken()}`,
+        },
+      }
+    );
+
+    const paymentUrl = data?.url || data?.paymentLink;
+    if (data.success && paymentUrl) {
+     window.location.href = paymentUrl;
+    } else if (data.success) {
+      // Fallback: fetch latest booking and try stored payment link.
+      const bookingsRes = await axios.get('/api/user/bookings', {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      const latestBooking = bookingsRes?.data?.bookings?.[0];
+      const fallbackPaymentUrl = latestBooking?.paymentLink;
+
+      if (fallbackPaymentUrl) {
+        window.location.href = fallbackPaymentUrl;
+        return;
+      }
+
+      console.error("Booking response missing payment URL:", data);
+      toast.error(`Checkout created but payment URL missing. ${data?.message ? `API: ${data.message}` : ''}`);
+    } else {
+      toast.error(data.message);
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || error.message);
+  }
 };
 
   useEffect(() => {
-    getShow();
-  }, [id]);
+    if (id) getShow();
+  }, [id, user]);
 
+  useEffect(()=>{
+    if(selectedTime){
+      getOccupiedSeats();
+      setSelectedSeats([]);
+     }
+
+  },[selectedTime])
   if (!show) return <Loading />;
 
-  const timings = show.dateTime?.[date] || [];
+  const timings = show?.dateTime?.[date] || [];
 
   return (
     <div className="flex flex-col md:flex-row items-start gap-8 px-3 md:pl-2 md:pr-16 lg:pr-24 py-30 md:pt-50">
