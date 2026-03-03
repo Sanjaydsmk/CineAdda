@@ -30,8 +30,15 @@ export const protectAdmin = async (req, res, next) => {
     }
 
     const user = await clerkClient.users.getUser(userId);
+    const userRole = user?.publicMetadata?.role;
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdminByEmail = userEmail && adminEmails.includes(userEmail);
 
-    if (user.publicMetadata.role !== "admin") {
+    if (userRole !== "admin" && !isAdminByEmail) {
       return res.status(403).json({
         success: false,
         message: "Access Denied"
