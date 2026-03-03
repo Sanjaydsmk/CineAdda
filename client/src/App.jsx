@@ -21,6 +21,17 @@ const App = () => {
   const isAdminRoute = useLocation().pathname.startsWith('/admin');
 
   const { user, isAdmin }=useAppContext()
+  const adminElement = !user ? (
+    <div className="min-h-screen flex justify-center items-center">
+      <SignIn fallbackRedirectUrl={'/admin'} />
+    </div>
+  ) : isAdmin === null ? (
+    <div className="min-h-screen flex justify-center items-center">
+      <Loading />
+    </div>
+  ) : (
+    <Layout />
+  );
   return (
     <>
     <Toaster/>
@@ -36,11 +47,7 @@ const App = () => {
          <Route path='/loading/:nextUrl' element={<Loading />} />
         <Route path='/favourites' element={<Favourite />} />
         
-        <Route path='/admin/*' element={isAdmin === true ? <Layout/> : (
-        <div className="min-h-screen flex justify-center items-center">
-              <SignIn fallbackRedirectUrl={'/admin'}/>
-          </div>
-        )} >
+        <Route path='/admin/*' element={adminElement} >
          <Route index element={<Dashboard />} />
           <Route path="add-shows" element={<AddShows />} />
           <Route path="list-shows" element={<ListShows />} />
