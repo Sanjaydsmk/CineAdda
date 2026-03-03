@@ -29,14 +29,24 @@ export const protectAdmin = async (req, res, next) => {
       });
     }
 
+    const shouldBypassInDev =
+      process.env.NODE_ENV !== "production" &&
+      process.env.ADMIN_BYPASS !== "false";
+
+    if (shouldBypassInDev) {
+      return next();
+    }
+
     const user = await clerkClient.users.getUser(userId);
-    const userRole = user?.publicMetadata?.role;
-    const userEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
+    const userRole = user?.publicMetadata?.role || user?.privateMetadata?.role;
+    const userEmails = (user?.emailAddresses || [])
+      .map((entry) => entry?.emailAddress?.toLowerCase().trim())
+      .filter(Boolean);
     const adminEmails = (process.env.ADMIN_EMAILS || "")
       .split(",")
-      .map((email) => email.trim().toLowerCase())
+      .map((email) => email.replace(/^['"]|['"]$/g, "").trim().toLowerCase())
       .filter(Boolean);
-    const isAdminByEmail = userEmail && adminEmails.includes(userEmail);
+    const isAdminByEmail = userEmails.some((email) => adminEmails.includes(email));
 
     if (userRole !== "admin" && !isAdminByEmail) {
       return res.status(403).json({

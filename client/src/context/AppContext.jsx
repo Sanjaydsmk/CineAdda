@@ -32,6 +32,12 @@ export const AppProvider = ({ children }) => {
       }
     } catch (err) {
       console.log(err);
+      if (!err?.response) {
+        // Backend unreachable or network issue: keep loading state
+        // so UI doesn't falsely show "not admin".
+        toast.error('Cannot reach backend server. Start backend on port 3000.');
+        return;
+      }
       setIsAdmin(false);
     }
   };
