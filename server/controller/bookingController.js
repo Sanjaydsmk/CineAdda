@@ -1,6 +1,7 @@
 import Booking from "../models/Bookings.js";
 import Show from "../models/Show.js";
 import stripe from 'stripe';
+import { inngest } from "../inngest/index.js";
 
 //func to check availability of selected seats
 const checkSeatsAvailability = async (showId, selectedSeats) => {
@@ -30,6 +31,9 @@ export const createBooking = async (req, res) => {
         const selectedSeats = bodySelectedSeats || seats || [];
         const {origin}=req.headers;
         const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+        const isDummyPaymentMode =
+            process.env.ALLOW_DUMMY_PAYMENTS === "true" ||
+            (!stripeSecret && process.env.NODE_ENV !== "production");
 
         if (!userId) {
             return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -38,7 +42,7 @@ export const createBooking = async (req, res) => {
         if (!showId || !Array.isArray(selectedSeats) || selectedSeats.length === 0) {
             return res.status(400).json({ success: false, message: "showId and seats are required" });
         }
-        if (!stripeSecret) {
+        if (!stripeSecret && !isDummyPaymentMode) {
             return res.status(500).json({ success: false, message: "Stripe is not configured on server" });
         }
 
@@ -65,6 +69,29 @@ export const createBooking = async (req, res) => {
 
         showData.markModified('occupiedSeats');
         await showData.save();
+
+        if (isDummyPaymentMode) {
+            booking.isPaid = true;
+            booking.paymentLink = "";
+            await booking.save();
+            try {
+                await inngest.send({
+                    name: 'app/show.booked',
+                    data: { bookingId: booking._id.toString() },
+                });
+            } catch (sendError) {
+                console.error('Failed to enqueue booking confirmation event:', sendError);
+            }
+
+            return res.json({
+                success: true,
+                url: `${origin}/my-bookings?payment=dummy_success&bookingId=${booking._id}`,
+                paymentLink: "",
+                bookingId: booking._id,
+                isDummyPayment: true,
+                message: "Dummy payment completed",
+            });
+        }
 
         //stripe gateway
         const stripeInstance=new stripe(stripeSecret)
@@ -93,6 +120,15 @@ export const createBooking = async (req, res) => {
         const checkoutUrl = session.url || null;
         booking.paymentLink = checkoutUrl;
         await booking.save()
+
+        try {
+            await inngest.send({
+                name: 'app/checkpayment',
+                data: { bookingId: booking._id.toString() },
+            });
+        } catch (sendError) {
+            console.error('Failed to enqueue payment check event:', sendError);
+        }
 
         if (!checkoutUrl) {
             return res.status(500).json({
