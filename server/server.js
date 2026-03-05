@@ -9,6 +9,7 @@ import showRouter from './routes/showRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import adminRouter from './routes/adminRoutes.js';
 import userRouter from './routes/userRoutes.js';
+import mlRouter from './routes/mlRoutes.js';
 import { stripeWebhook } from './controller/stripeWebhooks.js';
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/api/shows', showRouter)
 app.use('/api/booking',bookingRouter)
 app.use('/api/admin',adminRouter)
 app.use('/api/user',userRouter)
+app.use('/api/ml', mlRouter)
 
 
 app.listen(port,()=>{

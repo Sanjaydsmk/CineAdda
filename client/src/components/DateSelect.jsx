@@ -7,6 +7,14 @@ import { useNavigate } from 'react-router-dom'
 const DateSelect = ({dateTime,id}) => {
     const [selected,setSelected]=useState(null);
     const navigate=useNavigate()
+    const formatDateChip = (dateKey) => {
+        const [year, month, day] = dateKey.split('-').map(Number);
+        const monthLabel = new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-US', {
+            month: 'short',
+            timeZone: 'UTC',
+        });
+        return { day, monthLabel };
+    };
     const onBookHandler=()=>{
         if(!selected)
         {
@@ -28,8 +36,8 @@ const DateSelect = ({dateTime,id}) => {
                     {Object.keys(dateTime).map((date)=>(
                         <button key={date} className={`flex flex-col items-center justify-center h-14 w-14 aspect-square rounded cursor-pointer ${selected===date ? "bg-primary text-white" : "border border-primary/70"}`}
                         onClick={()=>setSelected(date)}>
-                            <span>{new Date(date).getDate()}</span>
-                             <span>{new Date(date).toLocaleDateString("en-US",{month:"short"})}</span>
+                            <span>{formatDateChip(date).day}</span>
+                             <span>{formatDateChip(date).monthLabel}</span>
                         </button>
                     ))}
                 </span>

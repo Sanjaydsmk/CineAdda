@@ -1,6 +1,21 @@
 import Stripe from 'stripe';
 import Booking from '../models/Bookings.js';
-import { inngest } from '../inngest/index.js';
+import { sendBookingConfirmationEmailById } from '../utils/sendBookingConfirmationEmail.js';
+
+const markBookingPaid = async (bookingId) => {
+  if (!bookingId) return;
+
+  await Booking.findByIdAndUpdate(bookingId, {
+    isPaid: true,
+    paymentLink: '',
+  });
+
+  try {
+    await sendBookingConfirmationEmailById(bookingId);
+  } catch (mailError) {
+    console.error('Booking confirmation email failed:', mailError);
+  }
+};
 
 export const stripeWebhook = async (req, res) => {
   const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -19,6 +34,20 @@ export const stripeWebhook = async (req, res) => {
   }
   try {
     switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        const bookingId = session?.metadata?.bookingId;
+
+        if (!bookingId) {
+          console.log('No bookingId found in checkout.session.completed');
+          break;
+        }
+
+        await markBookingPaid(bookingId);
+        console.log('Payment updated from checkout.session.completed:', bookingId);
+        break;
+      }
+
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
 
@@ -35,15 +64,7 @@ export const stripeWebhook = async (req, res) => {
           break;
         }
 
-        await Booking.findByIdAndUpdate(bookingId, {
-          isPaid: true,
-          paymentLink: '',
-        });
-
-        await inngest.send({
-          name: 'app/show.booked',
-          data: { bookingId },
-        });
+        await markBookingPaid(bookingId);
 
         console.log('Payment updated:', bookingId);
         break;

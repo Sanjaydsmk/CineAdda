@@ -2,6 +2,7 @@ import Booking from "../models/Bookings.js";
 import Show from "../models/Show.js";
 import stripe from 'stripe';
 import { inngest } from "../inngest/index.js";
+import { sendBookingConfirmationEmailById } from "../utils/sendBookingConfirmationEmail.js";
 
 //func to check availability of selected seats
 const checkSeatsAvailability = async (showId, selectedSeats) => {
@@ -75,12 +76,9 @@ export const createBooking = async (req, res) => {
             booking.paymentLink = "";
             await booking.save();
             try {
-                await inngest.send({
-                    name: 'app/show.booked',
-                    data: { bookingId: booking._id.toString() },
-                });
-            } catch (sendError) {
-                console.error('Failed to enqueue booking confirmation event:', sendError);
+                await sendBookingConfirmationEmailById(booking._id.toString());
+            } catch (mailError) {
+                console.error("Failed to send booking confirmation email:", mailError);
             }
 
             return res.json({
@@ -108,7 +106,7 @@ export const createBooking = async (req, res) => {
             quantity:1
         }]
         const session=await stripeInstance.checkout.sessions.create({
-            success_url:`${origin}/my-bookings?payment=success`,
+            success_url:`${origin}/my-bookings?payment=success&bookingId=${booking._id}`,
             cancel_url:`${origin}/my-bookings`,
             line_items:line_items,
             mode:'payment',
@@ -151,6 +149,45 @@ export const createBooking = async (req, res) => {
         console.error("Error creating booking:", error);
         res.json({success:false, message:error.message})
 
+    }
+}
+
+export const confirmBookingAfterPaymentReturn = async (req, res) => {
+    try {
+        const { userId } = req.auth();
+        const { bookingId } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        if (!bookingId) {
+            return res.status(400).json({ success: false, message: "bookingId is required" });
+        }
+
+        const booking = await Booking.findById(bookingId);
+        if (!booking) {
+            return res.status(404).json({ success: false, message: "Booking not found" });
+        }
+        if (booking.user !== userId) {
+            return res.status(403).json({ success: false, message: "Access denied" });
+        }
+
+        if (!booking.isPaid) {
+            booking.isPaid = true;
+            booking.paymentLink = "";
+            await booking.save();
+        }
+
+        try {
+            await sendBookingConfirmationEmailById(booking._id.toString());
+        } catch (mailError) {
+            console.error("Failed to send booking confirmation email:", mailError);
+        }
+
+        return res.json({ success: true, message: "Booking confirmed", bookingId });
+    } catch (error) {
+        console.error("Error confirming booking:", error);
+        return res.status(500).json({ success: false, message: error.message });
     }
 }
 

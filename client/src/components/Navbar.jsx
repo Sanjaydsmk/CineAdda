@@ -31,6 +31,8 @@ border-gray-300/20 overflow-hidden transition-[width] duration-300
 
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/'>Home</Link>
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/movies'>Movies</Link>
+        <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/moodify'>Moodify</Link>
+        <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/ml-lab'>ML Lab</Link>
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/theaters'>Theaters</Link>
         <Link onClick={()=> {scrollTo(0, 0);setIsOpen(false)}} to='/releases'>Releases</Link>
        {favoriteMovies?.length > 0 && <Link

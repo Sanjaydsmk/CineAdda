@@ -3,35 +3,58 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import timeFormat from '../lib/timeFormat';
 import { useAppContext } from '../context/AppContext';
+
+const getImageUrl = (path, baseUrl) => {
+  if (!path || typeof path !== 'string') return '/no-image.svg';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return `${baseUrl}${path}`;
+};
+
 const MovieCard = ({movie}) => {
 
     const navigate = useNavigate()
     const {image_base_url}=useAppContext()
     if (!movie) return null;
+    const movieId = movie.id || movie._id;
+    const genres = Array.isArray(movie.genres) ? movie.genres : [];
+    const genreText = genres
+      .slice(0, 2)
+      .map((genre) => (typeof genre === 'string' ? genre : genre?.name))
+      .filter(Boolean)
+      .join('|') || 'Genre N/A';
+    const releaseYear = movie.release_date
+      ? new Date(movie.release_date).getFullYear()
+      : 'N/A';
+    const runtimeText = Number(movie.runtime) > 0 ? timeFormat(movie.runtime) : 'N/A';
+    const ratingText =
+      typeof movie.vote_average === 'number' ? movie.vote_average.toFixed(1) : 'N/A';
+    const imagePath = movie.backdrop_path || movie.poster_path;
+    const imageUrl = getImageUrl(imagePath, image_base_url);
 
   return (
   <div className='flex flex-col justify-between p-3 bg-gray-800
     rounded-2xl hover:-translate-y-1 transition duration-300 w-66'>
 
     <img onClick={()=>{
-      const movieId = movie.id || movie._id;
       navigate(`/movie/${movieId}`);
       scrollTo(0, 0);
     }}
-    src={movie.backdrop_path ? image_base_url + movie.backdrop_path : '/no-image.png'} alt={movie.title} 
+    src={imageUrl}
+    onError={(event) => {
+      event.currentTarget.src = '/no-image.svg';
+    }}
+    alt={movie.title || 'Movie poster'} 
     className='w-full h-52 object-cover object-right-bottom
     rounded-lg cursor-pointer' />
 
     <p className='font-semibold mt-2 truncate'>{movie.title}</p>
    
     <p className='text-sm text-gray-400 mt-2'>
-    {new Date(movie.release_date).getFullYear()} | {movie.genres.slice(0, 2).map
-    (genre => typeof genre === 'string' ? genre : genre.name).join('|')} | {timeFormat(movie.runtime)} 
+    {releaseYear} | {genreText} | {runtimeText}
          </p>
 
         <div className='flex items-center justify-between mt-4 pb-3'>
             <button onClick={()=>{
-              const movieId = movie.id || movie._id;
               navigate(`/movie/${movieId}`);
               scrollTo(0, 0);
             }} 
@@ -43,7 +66,7 @@ const MovieCard = ({movie}) => {
             <p className='flex items-center gap-1 text-sm 
             text-gray-400 mt-1 pr-1'>
             <StarIcon className='w-4 h-4 text-primary fill-primary'/>
-                {movie.vote_average.toFixed(1)}
+                {ratingText}
             </p>
 
         </div>

@@ -13,6 +13,7 @@ const MovieDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [show, setShows] = React.useState(null);
+  const [similarMovies, setSimilarMovies] = React.useState([]);
   const {
     shows,
     axios,
@@ -37,6 +38,17 @@ const MovieDetails = () => {
     }
   };
 
+  const fetchSimilarMovies = async () => {
+    try {
+      const { data } = await axios.get(`/api/ml/similar/${id}?top_k=4`);
+      if (data.success) {
+        setSimilarMovies(data.recommendations || []);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const handleFavorite = async () => {
     const result = await toggleFavorite(id);
     if (result.success) {
@@ -48,6 +60,7 @@ const MovieDetails = () => {
   useEffect(() => {
     if (id) {
       getShows();
+      fetchSimilarMovies();
     }
   }, [id, user]);
 
@@ -147,11 +160,11 @@ const MovieDetails = () => {
 
       <p className="text-lg font-medium mt-20 mb-8">You May Also Like</p>
       <div className="flex flex-wrap max-sm:justify-center gap-8">
-        {shows
-          .filter((s) => s && s.movie)
+        {(similarMovies.length ? similarMovies : shows)
+          .filter((s) => s && (s.movie || s._id || s.id))
           .slice(0, 4)
           .map((s, index) => (
-            <MovieCard key={index} movie={s.movie} />
+            <MovieCard key={index} movie={s.movie || s} />
           ))}
       </div>
       <div className="flex justify-center mt-20">

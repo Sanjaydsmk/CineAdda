@@ -18,16 +18,27 @@ const AddShows = () => {
 
   const currency = '$';
 
-   const fetchNowPlayingMovies = async () => {
+  const fetchNowPlayingMovies = async () => {
     try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Login required to fetch now playing movies.');
+        return;
+      }
       const { data } = await axios.get('/api/shows/now-playing', {
-        headers: { Authorization: `Bearer ${await getToken()}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (data.success) {
         setNowPlayingMovies(data.movies || []);
+        if (data.warning) {
+          toast.error(data.warning);
+        }
+      } else {
+        toast.error(data.message || 'Failed to fetch now playing movies.');
       }
     } catch (err) {
       console.error('Error fetching movies:', err);
+      toast.error(err?.response?.data?.message || 'Could not load now playing movies.');
     }
   };
    const handleSubmit = async () => {
@@ -190,6 +201,11 @@ const AddShows = () => {
 
           </div>
         ))}
+        {nowPlayingMovies.length === 0 && (
+          <p className="text-sm text-gray-400">
+            No now playing movies found. Check TMDB key in `server/.env`, then restart backend.
+          </p>
+        )}
         </div>
       </div>
 

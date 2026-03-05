@@ -7,6 +7,8 @@ import MovieDetails from './pages/MovieDetails';
 import SeatLayout from './pages/SeatLayout';
 import MyBookings from './pages/MyBookings';
 import Favourite from './pages/Favourite';
+import Moodify from './pages/Moodify';
+import MLLab from './pages/MLLab';
 import { Toaster} from 'react-hot-toast';
 import Footer from './components/Footer';
 import Layout from './admin/Layout';
@@ -61,6 +63,8 @@ const App = () => {
         <Route path='/my-bookings' element={<MyBookings />} />
          <Route path='/loading/:nextUrl' element={<Loading />} />
         <Route path='/favourites' element={<Favourite />} />
+        <Route path='/moodify' element={<Moodify />} />
+        <Route path='/ml-lab' element={<MLLab />} />
         
         <Route path='/admin/*' element={adminElement} >
          <Route index element={<Dashboard />} />

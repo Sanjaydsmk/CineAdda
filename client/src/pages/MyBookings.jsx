@@ -4,6 +4,8 @@ import BlurCircle from '../components/BlurCircle';
 import timeFormat from '../lib/timeFormat';
 import dateFormat from '../lib/dateFormat';
 import { useAppContext } from '../context/AppContext';
+import { useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const MyBookings = () => {
 
@@ -15,6 +17,8 @@ const {
     user,
     image_base_url,
   } = useAppContext();
+const location = useLocation();
+const navigate = useNavigate();
 const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -39,6 +43,38 @@ const [bookings, setBookings] = useState([]);
       getMyBookings();
     }
   }, [user]);
+
+  useEffect(() => {
+    const syncPaymentReturn = async () => {
+      if (!user) return;
+
+      const params = new URLSearchParams(location.search);
+      const payment = params.get('payment');
+      const bookingId = params.get('bookingId');
+
+      if (payment !== 'success' || !bookingId) return;
+
+      try {
+        const { data } = await axios.post(
+          '/api/booking/confirm-payment',
+          { bookingId },
+          { headers: { Authorization: `Bearer ${await getToken()}` } }
+        );
+        if (data.success) {
+          toast.success('Payment confirmed');
+          getMyBookings();
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        params.delete('payment');
+        params.delete('bookingId');
+        navigate(`/my-bookings${params.toString() ? `?${params.toString()}` : ''}`, { replace: true });
+      }
+    };
+
+    syncPaymentReturn();
+  }, [user, location.search]);
 
   return !isLoading ? (
     <div className="relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]">
